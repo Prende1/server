@@ -8,11 +8,11 @@ const userRoutes = require('./routes/userRoutes');
 
 
 const app = express();
-const client_url=process.env.CLIENT_URL;
+// const client_url=process.env.CLIENT_URL;
 connectDB();
 app.use(express.json());
 app.use(cookieParser()); 
-app.use(cors({origin:`${client_url}`,credentials:true}))
+app.use(cors({origin:`*`,credentials:true}))
 
 
 app.use('/api/users',userRoutes )
