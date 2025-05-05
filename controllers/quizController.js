@@ -131,15 +131,18 @@ const getQuizById = async (req, res) => {
 const getQuestionsWithAnswers = async (req, res) => {
   try {
     const { quizID } = req.params;
-
-    // Fetch all questions related to the quiz
     const questions = await Question.find({ quizID }).lean();
 
-    // Fetch answers for each question and map them
     const questionsWithAnswers = await Promise.all(
       questions.map(async (question) => {
         const answers = await Answer.find({ questionID: question._id }).lean();
-        return { ...question, answers };
+        const solution = await Solution.findOne({ questionID: question._id });
+
+        return {
+          ...question,
+          answers,
+          correctAnswerId: solution?.answerID?.toString() || null,
+        };
       })
     );
 
