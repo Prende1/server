@@ -1,6 +1,5 @@
 const mongoose = require("mongoose");
 
-
 const userSchema = new mongoose.Schema({
   username: {
     type: String,
@@ -26,6 +25,21 @@ const userSchema = new mongoose.Schema({
     type: Object,
     default: {}
   },
+  level: {
+    type: String,
+    enum: ["Beginner", "Intermediate", "Advanced"],
+    default: "Beginner"
+  },
+  image: {
+    type: String,
+    default: ""
+  },
+  ageGroup: {
+    type: String,
+  },
+  DOB: {
+    type: Date,
+  },
   createdTS: {
     type: Date,
     default: Date.now
@@ -35,4 +49,3 @@ const userSchema = new mongoose.Schema({
 const User = mongoose.model('User', userSchema);
 
 module.exports = User;
-

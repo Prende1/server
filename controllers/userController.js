@@ -2,6 +2,7 @@ const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
+const uploadImageToCloudinary = require("../middleware/imageUpload"); // Assuming you have a utility function to upload images to Cloudinary
 
 dotenv.config(); // Load environment variables
 
@@ -14,27 +15,65 @@ const generateToken = (user) => {
   });
 };
 
+// Middleware to Verify JWT Token
+exports.protect = async (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token)
+      return res.status(401).json({ message: "Unauthorized, token required" });
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = await User.findById(decoded.id).select("-password");
+    if (!req.user) return res.status(404).json({ message: "User not found" });
+
+    next();
+  } catch (error) {
+    res
+      .status(401)
+      .json({ message: "Invalid or expired token", error: error.message });
+  }
+};
+
+// Update User Profile (Protected Route)
 // Login or Register User
 exports.loginOrRegister = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, username, phone, level, ageGroup, DOB } = req.body;
+    let imageUrl = "";
+    if (req.file) {
+      imageUrl = await uploadImageToCloudinary(req.file.buffer);
+    }
+    console.log(imageUrl);
 
     let user = await User.findOne({ email });
 
     if (user) {
-      // User exists, verify password
       const isMatch = await bcrypt.compare(password, user.password);
       if (!isMatch) {
         return res.status(400).json({ message: "Invalid password" });
       }
-      
+
       const token = generateToken(user);
       return res.status(200).json({ message: "Login successful", user, token });
     }
 
-    // If user doesn't exist, create a new one
+    if(!username || !phone || !password) {
+      return res.status(400).json({ message: "Please provide all required fields" });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new User({ email, password: hashedPassword });
+    console.log(hashedPassword);
+    const newUser = new User({
+      email,
+      password: hashedPassword,
+      username,
+      phone,
+      level,
+      ageGroup,
+      DOB,
+      image: imageUrl, // Cloudinary URL
+    });
+
     await newUser.save();
 
     const token = generateToken(newUser);
@@ -44,33 +83,26 @@ exports.loginOrRegister = async (req, res) => {
   }
 };
 
-// Middleware to Verify JWT Token
-exports.protect = async (req, res, next) => {
-  try {
-    const token = req.headers.authorization?.split(" ")[1];
-    if (!token) return res.status(401).json({ message: "Unauthorized, token required" });
-    
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = await User.findById(decoded.id).select("-password");
-    if (!req.user) return res.status(404).json({ message: "User not found" });
-    
-    next();
-  } catch (error) {
-    res.status(401).json({ message: "Invalid or expired token", error: error.message });
-  }
-};
-
 // Update User Profile (Protected Route)
 exports.updateUserProfile = async (req, res) => {
   try {
-    const {id} = req.params;
-    const { username, phone, premium, paymentDetails } = req.body;
+    const { id } = req.params;
+    const { username, phone, premium, paymentDetails, level, ageGroup, DOB } = req.body;
+    const image = req.file?.path;
 
-    const updatedUser = await User.findByIdAndUpdate(
-      id,
-      { username, phone, premium, paymentDetails },
-      { new: true }
-    );
+    const updateData = {
+      username,
+      phone,
+      premium,
+      paymentDetails,
+      level,
+      ageGroup,
+      DOB,
+    };
+
+    if (image) updateData.image = image;
+
+    const updatedUser = await User.findByIdAndUpdate(id, updateData, { new: true });
 
     if (!updatedUser) return res.status(404).json({ message: "User not found" });
 
@@ -86,7 +118,9 @@ exports.getUsers = async (req, res) => {
     const users = await User.find().select("-password");
     res.status(200).json(users);
   } catch (error) {
-    res.status(500).json({ message: "Error fetching users", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error fetching users", error: error.message });
   }
 };
 
@@ -97,7 +131,9 @@ exports.getUserById = async (req, res) => {
     if (!user) return res.status(404).json({ message: "User not found" });
     res.status(200).json(user);
   } catch (error) {
-    res.status(500).json({ message: "Error fetching user", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error fetching user", error: error.message });
   }
 };
 
@@ -105,9 +141,12 @@ exports.getUserById = async (req, res) => {
 exports.deleteUser = async (req, res) => {
   try {
     const deletedUser = await User.findByIdAndDelete(req.params.id);
-    if (!deletedUser) return res.status(404).json({ message: "User not found" });
+    if (!deletedUser)
+      return res.status(404).json({ message: "User not found" });
     res.status(200).json({ message: "User deleted successfully" });
   } catch (error) {
-    res.status(500).json({ message: "Error deleting user", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error deleting user", error: error.message });
   }
 };
