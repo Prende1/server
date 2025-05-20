@@ -8,6 +8,9 @@ const userRoutes = require('./routes/userRoutes');
 const quizRoutes = require("./routes/quizRoutes");
 const responseRoutes = require("./routes/responseRoutes");
 const quizResultRoutes = require("./routes/quizResultRoutes");
+const wordRoutes = require("./routes/wordRoutes"); // Import word routes
+const wordQuestionRoutes = require("./routes/wordQuestionRoutes"); // Import word question routes
+const wordAnswerRoutes = require("./routes/wordAnswerRoutes"); // Import word answer routes
 
 
 const app = express();
@@ -22,6 +25,9 @@ app.use('/api/users',userRoutes )
 app.use('/api', quizRoutes); 
 app.use('/api/responses', responseRoutes);
 app.use('/api/quiz-results', quizResultRoutes);
+app.use('/api/words', wordRoutes); // Add this line to include word routes
+app.use('/api/wordQuestion', wordQuestionRoutes)
+app.use('/api/wordAnswer', wordAnswerRoutes)
 
 
 module.exports = app;
