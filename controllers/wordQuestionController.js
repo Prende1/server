@@ -55,3 +55,25 @@ exports.createWordQuestion = async (req, res) => {
       });
   }
 };
+
+// Get questions by wordID where wordId is given from request params
+exports.getAllWordQuestions = async (req, res) => {
+  try {
+    const  wordID  = req.params.wordID;
+
+    if (!wordID) {
+      return res.status(400).json({ error: "wordID is required" });
+    }
+
+    const wordQuestions = await WordQuestion.find({ wordID });
+
+    if (wordQuestions.length === 0) {
+      return res.status(404).json({ message: "No questions found for this word" });
+    }
+
+    res.status(200).json(wordQuestions);
+  } catch (error) {
+    console.error("Error fetching word questions:", error);
+    res.status(500).json({ error: "Failed to fetch word questions", details: error.message });
+  }
+}

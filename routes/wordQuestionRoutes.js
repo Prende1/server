@@ -4,5 +4,7 @@ const wordQuestionController = require("../controllers/wordQuestionController");
 
 // POST: Create and review a word question
 router.post("/", wordQuestionController.createWordQuestion);
+// GET: Retrieve all word questions
+router.get("/:wordID", wordQuestionController.getAllWordQuestions);
 
 module.exports = router;
