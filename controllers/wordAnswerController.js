@@ -88,3 +88,28 @@ Respond in JSON:
       .json({ error: "Failed to create word answer", details: error.message });
   }
 };
+
+
+//get word answers by wordQuestion ID
+exports.getWordAnswersByWqID = async (req, res) => {
+  try {
+    const { wqID } = req.params;
+
+    if (!wqID) {
+      return res.status(400).json({ error: "wqID is required" });
+    }
+
+    const wordAnswers = await WordAnswer.find({ wqID })
+      .populate("answered_by", "username")
+      .populate("reviewed_by", "username");
+
+    if (!wordAnswers || wordAnswers.length === 0) {
+      return res.status(404).json({ message: "No answers found for this question" });
+    }
+
+    res.status(200).json(wordAnswers);
+  } catch (error) {
+    console.error("Error fetching word answers:", error);
+    res.status(500).json({ error: "Failed to fetch word answers", details: error.message });
+  }
+};
