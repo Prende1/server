@@ -26,7 +26,6 @@ exports.createWordAnswer = async (req, res) => {
     if (!wordQuestion) {
       return res.status(404).json({ error: "Word question not found" });
     }
-    console.log("Word Question:", wordQuestion);
 
     // Gemini prompt with relevance focus
     const reviewPrompt = `You're an AI reviewing an English vocabulary answer. Ignore grammar and spelling errors. Focus only on whether the answer is relevant, meaningful, and appropriate in response to the question.
