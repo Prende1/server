@@ -1,9 +1,9 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const wordQuestionSchema = new mongoose.Schema({
   wordID: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Word',
+    ref: "Word",
     required: true,
   },
   question: {
@@ -12,13 +12,13 @@ const wordQuestionSchema = new mongoose.Schema({
     trim: true,
   },
   created_by: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User', // Assuming you have a User model
+    type: String, // store the username directly
     required: true,
+    trim: true,
   },
   reviewed_by: {
     type: String, // e.g., 'gemini-2.0'
-    default: 'AI',
+    default: "AI",
   },
   num_vote: {
     type: Number,
@@ -35,9 +35,9 @@ const wordQuestionSchema = new mongoose.Schema({
   updated_ts: {
     type: Date,
     default: Date.now,
-  }
+  },
 });
 
-const WordQuestion = mongoose.model('WordQuestion', wordQuestionSchema);
+const WordQuestion = mongoose.model("WordQuestion", wordQuestionSchema);
 
 module.exports = WordQuestion;

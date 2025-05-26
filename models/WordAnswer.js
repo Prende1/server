@@ -17,9 +17,9 @@ const wordAnswerSchema = new mongoose.Schema({
     trim: true,
   },
   answered_by: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
+    type: String, // store the username directly
     required: true,
+    trim: true,
   },
   reviewed_by: {
     type: String,

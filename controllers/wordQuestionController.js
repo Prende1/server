@@ -59,7 +59,7 @@ exports.createWordQuestion = async (req, res) => {
 // Get questions by wordID where wordId is given from request params
 exports.getAllWordQuestions = async (req, res) => {
   try {
-    const  wordID  = req.params.wordID;
+    const wordID  = req.params.wordID;
 
     if (!wordID) {
       return res.status(400).json({ error: "wordID is required" });
