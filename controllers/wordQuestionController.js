@@ -26,9 +26,10 @@ exports.createWordQuestion = async (req, res) => {
     if (!wordData) {
       return res.status(404).json({ error: "Word not found" });
     }
+    const wordTitle = wordData.title;
 
     // Gemini review prompt
-    const reviewPrompt = `You're an English expert. Review the following user-submitted vocabulary question:\n"${question}"\nThe question is intended to be about the word: "${wordData.word}".\nIs it clear, grammatically correct, and relevant to this word? Respond with "Valid" or "Invalid".`;
+    const reviewPrompt = `You're an English vocabulary expert. A question was submitted by a user:\n"${question}"\nThis question is supposed to be about the word: "${wordTitle}".\nIgnore grammar or spelling mistakes. Just answer if the question is relevant to the meaning, usage, or context of this word.\nReply only with "Valid" if relevant, or "Invalid" if unrelated.`;
 
     const result = await model.generateContent({
       contents: [{ parts: [{ text: reviewPrompt }] }],
