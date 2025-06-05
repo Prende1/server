@@ -34,7 +34,6 @@ exports.protect = async (req, res, next) => {
   }
 };
 
-// Update User Profile (Protected Route)
 // Login or Register User
 exports.loginOrRegister = async (req, res) => {
   try {
@@ -59,6 +58,12 @@ exports.loginOrRegister = async (req, res) => {
 
     if(!username || !phone || !password) {
       return res.status(400).json({ message: "Please provide all required fields" });
+    }
+
+    // Check if username already exists
+    const existingUsername = await User.findOne({ username });
+    if (existingUsername) {
+      return res.status(400).json({ message: "Username already exists" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -89,6 +94,17 @@ exports.updateUserProfile = async (req, res) => {
     const { id } = req.params;
     const { username, phone, premium, paymentDetails, level, ageGroup, DOB } = req.body;
     const image = req.file?.path;
+
+    // If username is being updated, check if it already exists for another user
+    if (username) {
+      const existingUsername = await User.findOne({ 
+        username, 
+        _id: { $ne: id } // Exclude current user from the check
+      });
+      if (existingUsername) {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+    }
 
     const updateData = {
       username,
