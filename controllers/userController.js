@@ -88,25 +88,54 @@ exports.loginOrRegister = async (req, res) => {
   }
 };
 
-// Update User Profile (Protected Route)
+// Update User Profile (Protected Route)const uploadImageToCloudinary = require("../middleware/imageUpload"); // ensure this is imported
+
 exports.updateUserProfile = async (req, res) => {
   try {
     const { id } = req.params;
-    const { username, phone, premium, paymentDetails, level, ageGroup, DOB } = req.body;
-    const image = req.file?.path;
+    const {
+      username,
+      phone,
+      premium,
+      paymentDetails,
+      level,
+      ageGroup,
+      DOB,
+      email,
+    } = req.body;
 
-    // If username is being updated, check if it already exists for another user
+    let imageUrl;
+
+    // Upload image to Cloudinary if provided
+    if (req.file) {
+      imageUrl = await uploadImageToCloudinary(req.file.buffer); // buffer is required for memoryStorage
+    }
+
+    // Check for existing username
     if (username) {
-      const existingUsername = await User.findOne({ 
-        username, 
-        _id: { $ne: id } // Exclude current user from the check
+      const existingUsername = await User.findOne({
+        username,
+        _id: { $ne: id }, // exclude current user
       });
       if (existingUsername) {
         return res.status(400).json({ message: "Username already exists" });
       }
     }
 
+    // Check for existing email
+    if (email) {
+      const existingEmail = await User.findOne({
+        email,
+        _id: { $ne: id }, // exclude current user
+      });
+      if (existingEmail) {
+        return res.status(400).json({ message: "Email already exists" });
+      }
+    }
+
+    // Prepare update data
     const updateData = {
+      email,
       username,
       phone,
       premium,
@@ -116,17 +145,20 @@ exports.updateUserProfile = async (req, res) => {
       DOB,
     };
 
-    if (image) updateData.image = image;
+    if (imageUrl) updateData.image = imageUrl;
 
     const updatedUser = await User.findByIdAndUpdate(id, updateData, { new: true });
 
-    if (!updatedUser) return res.status(404).json({ message: "User not found" });
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
     res.status(200).json({ message: "Profile updated successfully", user: updatedUser });
   } catch (error) {
     res.status(500).json({ message: "Error updating profile", error: error.message });
   }
 };
+
 
 // Get All Users (Protected Route)
 exports.getUsers = async (req, res) => {
