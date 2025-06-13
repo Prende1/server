@@ -6,5 +6,6 @@ const wordAnswerController = require('../controllers/wordAnswerController');
 router.post('/', wordAnswerController.createWordAnswer);
 // GET: Retrieve answers for a specific word question
 router.get('/:wqID', wordAnswerController.getWordAnswersByWqID);
+router.get('/word/:wordID', wordAnswerController.getWordAnswersByWordID);
 
 module.exports = router;

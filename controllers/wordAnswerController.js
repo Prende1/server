@@ -132,3 +132,31 @@ exports.getWordAnswersByWqID = async (req, res) => {
       .json({ error: "Failed to fetch word answers", details: error.message });
   }
 };
+
+//get word answers by wordID
+exports.getWordAnswersByWordID = async (req, res) => {
+  try {
+    const { wordID } = req.params;
+
+    if (!wordID) {
+      return res.status(400).json({ error: "wordID is required" });
+    }
+
+    const wordAnswers = await WordAnswer.find({ wordID })
+      .populate("answered_by", "username")
+      .populate("reviewed_by", "username");
+
+    if (!wordAnswers || wordAnswers.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No answers found for this word" });
+    }
+
+    res.status(200).json(wordAnswers);
+  } catch (error) {
+    console.error("Error fetching word answers:", error);
+    res
+      .status(500)
+      .json({ error: "Failed to fetch word answers", details: error.message });
+  }
+};
