@@ -5,10 +5,25 @@ const uploadImageToCloudinary = (fileBuffer) => {
     cloudinary.uploader
       .upload_stream({ folder: "Vocab_profiles" }, (error, result) => {
         if (error) return reject(error);
-        resolve(result.secure_url);
+        resolve({
+          url: result.secure_url,
+          public_id: result.public_id,
+        });
       })
       .end(fileBuffer);
   });
 };
 
-module.exports = uploadImageToCloudinary;
+const deleteImageFromCloudinary = async (publicId) => {
+  try {
+    await cloudinary.uploader.destroy(publicId);
+  } catch (err) {
+    console.error("Cloudinary Deletion Error:", err.message);
+  }
+};
+
+// Export both functions
+module.exports = {
+  uploadImageToCloudinary,
+  deleteImageFromCloudinary,
+};

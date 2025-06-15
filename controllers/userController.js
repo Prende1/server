@@ -2,7 +2,8 @@ const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
-const uploadImageToCloudinary = require("../middleware/imageUpload"); // Assuming you have a utility function to upload images to Cloudinary
+const {uploadImageToCloudinary , deleteImageFromCloudinary} = require("../middleware/imageUpload"); // Assuming you have a utility function to upload images to Cloudinary
+
 
 dotenv.config(); // Load environment variables
 
@@ -104,18 +105,28 @@ exports.updateUserProfile = async (req, res) => {
       email,
     } = req.body;
 
-    let imageUrl;
+    const user = await User.findById(id);
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-    // Upload image to Cloudinary if provided
+    let imageUrl, imagePublicId;
+
+    // Upload new image to Cloudinary if provided
     if (req.file) {
-      imageUrl = await uploadImageToCloudinary(req.file.buffer); // buffer is required for memoryStorage
+      // Delete old image
+      if (user.imagePublicId) {
+        await deleteImageFromCloudinary(user.imagePublicId);
+      }
+
+      const uploadResult = await uploadImageToCloudinary(req.file.buffer);
+      imageUrl = uploadResult.url;
+      imagePublicId = uploadResult.public_id;
     }
 
     // Check for existing username
     if (username) {
       const existingUsername = await User.findOne({
         username,
-        _id: { $ne: id }, // exclude current user
+        _id: { $ne: id },
       });
       if (existingUsername) {
         return res.status(400).json({ message: "Username already exists" });
@@ -126,14 +137,13 @@ exports.updateUserProfile = async (req, res) => {
     if (email) {
       const existingEmail = await User.findOne({
         email,
-        _id: { $ne: id }, // exclude current user
+        _id: { $ne: id },
       });
       if (existingEmail) {
         return res.status(400).json({ message: "Email already exists" });
       }
     }
 
-    // Prepare update data
     const updateData = {
       email,
       username,
@@ -145,19 +155,21 @@ exports.updateUserProfile = async (req, res) => {
       DOB,
     };
 
-    if (imageUrl) updateData.image = imageUrl;
-
-    const updatedUser = await User.findByIdAndUpdate(id, updateData, { new: true });
-
-    if (!updatedUser) {
-      return res.status(404).json({ message: "User not found" });
+    if (imageUrl) {
+      updateData.image = imageUrl;
+      updateData.imagePublicId = imagePublicId;
     }
+
+    const updatedUser = await User.findByIdAndUpdate(id, updateData, {
+      new: true,
+    });
 
     res.status(200).json({ message: "Profile updated successfully", user: updatedUser });
   } catch (error) {
     res.status(500).json({ message: "Error updating profile", error: error.message });
   }
 };
+
 
 
 // Get All Users (Protected Route)

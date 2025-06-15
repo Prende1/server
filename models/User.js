@@ -8,33 +8,37 @@ const userSchema = new mongoose.Schema({
   },
   phone: {
     type: String,
-    unique: true
+    unique: true,
   },
   password: {
     type: String,
-    required: true
+    required: true,
   },
   email: {
     type: String,
     required: true,
-    unique: true
+    unique: true,
   },
   premium: {
     type: Boolean,
-    default: false
+    default: false,
   },
   paymentDetails: {
     type: Object,
-    default: {}
+    default: {},
   },
   level: {
     type: String,
     enum: ["Beginner", "Intermediate", "Advanced"],
-    default: "Beginner"
+    default: "Beginner",
   },
   image: {
     type: String,
-    default: ""
+    default: "",
+  },
+  imagePublicId: {
+    type: String,
+    default: "",
   },
   ageGroup: {
     type: String,
@@ -44,10 +48,10 @@ const userSchema = new mongoose.Schema({
   },
   createdTS: {
     type: Date,
-    default: Date.now
-  }
+    default: Date.now,
+  },
 });
 
-const User = mongoose.model('User', userSchema);
+const User = mongoose.model("User", userSchema);
 
 module.exports = User;
