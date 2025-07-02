@@ -31,6 +31,14 @@ const wordQuestionSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  likes:{
+    type: Number,
+    default: 0, // Number of likes
+  },
+  dislikes:{
+    type: Number,
+    default: 0, // Number of dislikes
+  },
   num_ans: {
     type: Number,
     default: 0,

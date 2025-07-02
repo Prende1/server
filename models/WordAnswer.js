@@ -34,6 +34,14 @@ const wordAnswerSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  likes:{
+    type: Number,
+    default: 0, // Number of likes
+  },
+  dislikes:{
+    type: Number,
+    default: 0, // Number of dislikes
+  },
   ai_score: {
     type: Number,
     default: 0, // Between 0 and 10
