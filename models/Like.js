@@ -1,8 +1,8 @@
 const mongoose = require('mongoose');
 
 const likeSchema = new mongoose.Schema({
-  userID: {
-    type: mongoose.Schema.Types.ObjectId,
+  username: {
+    type: String,
     required: true,
     ref: 'User',
   },
