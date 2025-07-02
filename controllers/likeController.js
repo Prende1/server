@@ -23,14 +23,15 @@ const handleLikeDislike = async (req, res) => {
 
     if (existing) {
       if (existing.like === like) {
-        // Remove the like/dislike
-        await Like.deleteOne({ _id: existing._id });
-        if (like) target.likes -= 1;
-        else target.dislikes -= 1;
+        // Reject redundant like/dislike
+        return res.status(400).json({ 
+          error: `You have already ${like ? 'liked' : 'disliked'} this ${isQuestion ? 'question' : 'answer'}.` 
+        });
       } else {
-        // Switch from like <-> dislike
+        // Switch from like to dislike or vice versa
         existing.like = like;
         await existing.save();
+
         if (like) {
           target.likes += 1;
           target.dislikes -= 1;
@@ -48,15 +49,20 @@ const handleLikeDislike = async (req, res) => {
 
     await target.save();
     return res.status(200).json({
-      message: 'Reaction updated successfully',
-      likes: target.likes,
-      dislikes: target.dislikes,
+      message: 'Reaction recorded successfully',
+      targetType: isQuestion ? 'question' : 'answer',
+      targetID: isQuestion ? questionID : answerID,
+      userReaction: like,
+      likes: target.likes || 0,
+      dislikes: target.dislikes || 0,
     });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 };
+
+
 
 const getLikeDislikeStats = async (req, res) => {
   try {
