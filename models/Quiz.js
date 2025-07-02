@@ -1,3 +1,7 @@
+/**
+ * Quiz model for storing quiz details.
+ * Each quiz has a title, category, and difficulty level.
+ */
 const mongoose = require('mongoose');
 
 const quizSchema = new mongoose.Schema({

@@ -1,3 +1,8 @@
+/**
+ * Answer model for storing answer options to quiz questions.
+ * Each answer is linked to a specific question and includes a title and reason.
+ */
+
 const mongoose = require('mongoose');
 
 const answerSchema = new mongoose.Schema({

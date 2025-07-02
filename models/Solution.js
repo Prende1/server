@@ -1,3 +1,7 @@
+/**
+ * Solution model for storing correct answers to quiz questions.
+ * Each solution links a question and an answer, and may include a reason for the solution.
+ */
 const mongoose = require('mongoose');
 
 const solutionSchema = new mongoose.Schema({

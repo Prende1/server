@@ -1,3 +1,7 @@
+/**
+ * Word model for storing vocabulary words.
+ * Each word has a title, type, and category, with timestamps for creation and updates.
+ */
 const mongoose = require('mongoose');
 
 const wordSchema = new mongoose.Schema({

@@ -1,3 +1,7 @@
+/**
+ * QuizResult model for storing results of quizzes taken by users.
+ * Each result links a quiz and a user, and includes timestamps for when the quiz was started
+ */
 const mongoose = require("mongoose");
 
 const quizResultSchema = new mongoose.Schema(

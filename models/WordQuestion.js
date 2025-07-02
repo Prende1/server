@@ -1,3 +1,10 @@
+/**
+ * WordQuestion model for storing questions related to words.
+ * Each question is linked to a specific word and includes details about the creator, 
+ * reviewer, and statistics like votes and answers.
+ * This model is used to facilitate user-generated questions about words in the vocabulary application.
+ */
+
 const mongoose = require("mongoose");
 
 const wordQuestionSchema = new mongoose.Schema({

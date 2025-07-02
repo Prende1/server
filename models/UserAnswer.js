@@ -1,3 +1,8 @@
+/**
+ * Answer model for storing user responses to quiz questions.
+ * Each response links a user, quiz, question, and answer, and indicates if the answer was correct.
+ */
+
 const mongoose = require('mongoose');
 
 const ResponseSchema = new mongoose.Schema({

@@ -1,6 +1,6 @@
 const Like = require('../models/Like');
-const Question = require('../models/Question');
-const Answer = require('../models/Answer');
+const Question = require('../models/WordQuestion');
+const Answer = require('../models/WordAnswer');
 
 const handleLikeDislike = async (req, res) => {
   try {

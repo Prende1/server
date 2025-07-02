@@ -1,3 +1,8 @@
+/**
+ * WordAnswer model for storing answers to word questions.
+ * Each answer is linked to a specific word and question, and includes details about the answerer,
+ * review status, and AI scoring.
+ */
 const mongoose = require("mongoose");
 
 const wordAnswerSchema = new mongoose.Schema({
