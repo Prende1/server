@@ -1,5 +1,41 @@
 const UserAnswer = require('../models/UserAnswer');
 const Solution = require('../models/Solution');
+const Quiz = require('../models/Quiz');
+
+//submit answer
+exports.submitAnswer = async (req, res) => {
+  try {
+    const { userID, quizID, questionID, answerID } = req.body;
+
+    if (!userID || !quizID || !questionID || !answerID) {
+      return res.status(400).json({ message: 'All fields are required' });
+    }
+    const session = await Quiz.findOne({ _id: quizID });
+    if (!session) return res.status(404).json({ error: "Quiz not found" });
+
+    session.answered.push(questionID);
+    await session.save();
+
+    // Check if the answer is correct
+    const isCorrect = await Solution.exists({ questionID, answerID });
+
+    // Create or update the user's answer
+    const userAnswer = await UserAnswer.findOneAndUpdate(
+      { userID, quizID, questionID },
+      { answerID, correct: !!isCorrect },
+      { new: true, upsert: true }
+    );
+
+    res.status(200).json({
+      message: 'Answer submitted successfully',
+      correct: !!isCorrect,
+      response: userAnswer
+    });
+  } catch (error) {
+    console.error('Error submitting answer:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
 
 exports.createOrUpdateAttempt = async (req, res) => {
   try {
