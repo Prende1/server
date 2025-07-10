@@ -1,6 +1,5 @@
 const QuizResult = require("../models/QuizResult");
 const UserAnswer = require("../models/UserAnswer");
-const Question = require("../models/Question");
 
 exports.submitOrUpdateQuizResult = async (req, res) => {
   try {
@@ -11,7 +10,7 @@ exports.submitOrUpdateQuizResult = async (req, res) => {
     }
 
     // Count total questions in the quiz
-    const totalQuestions = await Question.countDocuments({ quizID });
+    const totalQuestions = await UserAnswer.countDocuments({ quizID });
     if (totalQuestions === 0) {
       return res
         .status(400)
