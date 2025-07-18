@@ -94,3 +94,37 @@ exports.getAllWordQuestions = async (req, res) => {
       });
   }
 };
+
+// get all questions of all words
+exports.getAllQuestions = async (req, res) => {
+  try {
+    const wordQuestions = await WordQuestion.find({});
+    res.status(200).json(wordQuestions);
+  } catch (error) {
+    console.error("Error fetching word questions:", error);
+    res
+      .status(500)
+      .json({
+        error: "Failed to fetch word questions",
+        details: error.message,
+      });
+  }
+};
+
+//get a random question from all questions without repetition
+exports.getRandomQuestion = async (req, res) => {
+  try {
+    const wordQuestions = await WordQuestion.aggregate([
+      { $sample: { size: 1 } },
+    ]);
+    res.status(200).json(wordQuestions[0]);
+  } catch (error) {
+    console.error("Error fetching word questions:", error);
+    res
+      .status(500)
+      .json({
+        error: "Failed to fetch word questions",
+        details: error.message,
+      });
+  }
+};
