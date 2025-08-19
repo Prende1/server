@@ -2,6 +2,8 @@ require('dotenv').config();
 const express = require("express");
 const connectDB = require("./config/db");
 const cors = require('cors');
+const http = require('http');
+const socketSetup = require('./socket');
 const cookieParser = require('cookie-parser');
 const crypto = require('crypto');
 const userRoutes = require('./routes/userRoutes');
@@ -22,6 +24,7 @@ app.use(cookieParser());
 app.use(cors({origin:`*`,credentials:true}))
 
 
+
 app.use('/api/users',userRoutes )
 app.use('/api', quizRoutes); 
 app.use('/api/responses', responseRoutes);
@@ -31,5 +34,9 @@ app.use('/api/wordQuestion', wordQuestionRoutes)
 app.use('/api/wordAnswer', wordAnswerRoutes)
 app.use("/api/like", likeRoutes)
 
+const server = http.createServer(app);
 
-module.exports = app;
+socketSetup(server);
+
+
+module.exports = server;
