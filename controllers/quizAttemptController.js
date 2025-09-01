@@ -125,6 +125,7 @@ exports.getRecentAttempts = async (req, res) => {
       answerID: attempt.answerID?._id,
       answerTitle: attempt.answerID?.title,
       reason: attempt.answerID?.reason || "",
+      questionTags : attempt.questionID?.tags || [],
       correct: attempt.correct
     }));
 
