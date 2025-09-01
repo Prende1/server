@@ -15,6 +15,10 @@ const answerSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  isCorrect: {
+    type: Boolean,
+    default: false
+  },
   reason: {
     type: String
   }

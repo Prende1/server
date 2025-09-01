@@ -29,81 +29,82 @@ const generateQuestions = async (req, res) => {
   }
 
   try {
-    const inputPrompt = `Generate 10 English vocabulary multiple-choice questions about the word or topic "${prompt}".
-    - Each question should ask about meaning, synonyms, antonyms, or sentence usage.
-    - Each question must have 4 answer choices.
-    - Mark the correct answer clearly and provide a brief explanation.
-    - Also include a subtle hint for each question.
+    const inputPrompt = `Generate 10 multiple-choice quiz questions for children about the word or topic "${prompt}".
+    - Cover different aspects: meaning, synonyms, antonyms, sentence usage, and real-world context.
+    - Each question must include a "hint" that helps children think critically.
     - Assign a random difficulty: easy, medium, or hard.
-    - Return the output in the following JSON format:
+    - Add tags to each question such as ["philosophical", "grammatical", "historical", "practical"] to reflect its context.
+    - Each question must have exactly 4 answer choices.
+    - Exactly one answer choice must be correct (isCorrect: true). The other three must be incorrect (isCorrect: false).
+    - For the correct answer: provide a short "reason" explaining why it is correct.
+    - For each incorrect answer: provide a short "reason" explaining why it is wrong (e.g., “This word means something else” or “This does not fit the sentence usage.”).
+    - Return the output strictly in the following JSON format:
       {
         "questions": [
           {
             "question": "What does 'ephemeral' mean?",
             "difficulty": "easy",
             "hint": "Think about something that doesn't last long.",
+            "tags": ["grammatical", "philosophical"],
             "choices": [
-              {"title": "Temporary", "correct": true, "reason": "Ephemeral means short-lived or temporary."},
-              {"title": "Loud", "correct": false},
-              {"title": "Strong", "correct": false},
-              {"title": "Bright", "correct": false}
+              {"title": "Temporary", "isCorrect": true, "reason": "Ephemeral means short-lived or temporary."},
+              {"title": "Loud", "isCorrect": false, "reason": "Loud relates to sound, not duration."},
+              {"title": "Strong", "isCorrect": false, "reason": "Strong refers to power, not something short-lived."},
+              {"title": "Bright", "isCorrect": false, "reason": "Bright describes light or intelligence, not shortness of time."}
             ]
           }
         ]
       }`;
 
+    // Call the AI model
     const result = await model.generateContent({
       contents: [{ parts: [{ text: inputPrompt }] }],
     });
 
     let responseText = result.response.candidates[0].content.parts[0].text;
+
+    // Clean up response (remove ```json code fences if present)
     responseText = responseText.replace(/```json|```/g, "").trim();
+
     const quizData = JSON.parse(responseText);
 
     let questionsToInsert = [];
     let answersToInsert = [];
-    let solutionsToInsert = [];
 
     quizData.questions.forEach((q) => {
       const questionID = new mongoose.Types.ObjectId();
 
+      // Prepare question
       questionsToInsert.push({
         _id: questionID,
         title: q.question,
         hint: q.hint || "",
-        difficulty: q.difficulty || "medium", // fallback
+        difficulty: q.difficulty || "medium",
+        tags: q.tags || []
       });
 
+      // Prepare answers (with reasons for both correct + incorrect)
       q.choices.forEach((choice) => {
-        const answerID = new mongoose.Types.ObjectId();
-
         answersToInsert.push({
-          _id: answerID,
           questionID,
           title: choice.title,
-          reason: choice.reason || "",
+          isCorrect: choice.isCorrect || false,
+          reason: choice.reason || "No reason provided"
         });
-
-        if (choice.correct) {
-          solutionsToInsert.push({
-            questionID,
-            answerID,
-            reason: choice.reason || "",
-          });
-        }
       });
     });
 
+    // Save to DB
     await Question.insertMany(questionsToInsert);
     await Answer.insertMany(answersToInsert);
-    if (solutionsToInsert.length > 0) {
-      await Solution.insertMany(solutionsToInsert);
-    }
 
-    res.json({ message: "Questions generated successfully" });
+    res.json({ message: "Questions generated successfully", count: questionsToInsert.length });
   } catch (error) {
     console.error("Error generating questions:", error);
-    res.status(500).json({ error: "Failed to generate questions", details: error.message });
+    res.status(500).json({ 
+      error: "Failed to generate questions", 
+      details: error.message 
+    });
   }
 };
 
@@ -121,11 +122,12 @@ const startQuiz = async (req, res) => {
 
 const nextQuestion = async (req, res) => {
   const { quizId } = req.params;
+
   try {
     const session = await Quiz.findById(quizId);
     if (!session) return res.status(404).json({ error: "Quiz not found" });
 
-    // Find next unanswered question with matching difficulty
+    // Find next unanswered question matching difficulty
     const question = await Question.findOne({
       _id: { $nin: session.answered },
       difficulty: session.difficulty,
@@ -135,11 +137,8 @@ const nextQuestion = async (req, res) => {
       return res.json({ finished: true, message: "No more questions available." });
     }
 
-    // Manually fetch related answers and solution
-    const [answers, solution] = await Promise.all([
-      Answer.find({ questionID: question._id }).lean(),
-      Solution.findOne({ questionID: question._id }).lean()
-    ]);
+    // Fetch related answers (with correctness & reasons)
+    const answers = await Answer.find({ questionID: question._id }).lean();
 
     res.json({
       question: {
@@ -147,18 +146,18 @@ const nextQuestion = async (req, res) => {
         title: question.title,
         hint: question.hint,
         difficulty: question.difficulty,
+        tags: question.tags,
         answers: answers.map(a => ({
           _id: a._id,
           title: a.title,
-          reson: a.reason || ""
-        })),
-        correctAnswerId: solution?.answerID?.toString() || null,
-        reason: solution?.reason || ""
+          isCorrect: a.isCorrect, // can be hidden on frontend until user submits
+          reason: a.reason || ""
+        }))
       }
     });
   } catch (error) {
     console.error("Error fetching next question:", error);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ error: "Server error", details: error.message });
   }
 };
 
