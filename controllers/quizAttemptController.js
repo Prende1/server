@@ -1,8 +1,8 @@
 const UserAnswer = require('../models/UserAnswer');
-const Solution = require('../models/Solution');
 const Quiz = require('../models/Quiz');
+const Answer = require('../models/Answer');
 
-//submit answer
+// ✅ Submit answer
 exports.submitAnswer = async (req, res) => {
   try {
     const { userID, quizID, questionID, answerID } = req.body;
@@ -10,33 +10,44 @@ exports.submitAnswer = async (req, res) => {
     if (!userID || !quizID || !questionID || !answerID) {
       return res.status(400).json({ message: 'All fields are required' });
     }
-    const session = await Quiz.findOne({ _id: quizID });
+
+    const session = await Quiz.findById(quizID);
     if (!session) return res.status(404).json({ error: "Quiz not found" });
 
-    session.answered.push(questionID);
-    await session.save();
+    // Add question to answered list (avoid duplicates)
+    if (!session.answered.includes(questionID)) {
+      session.answered.push(questionID);
+      await session.save();
+    }
 
-    // Check if the answer is correct
-    const isCorrect = await Solution.exists({ questionID, answerID });
+    // ✅ Check if the chosen answer is correct
+    const chosenAnswer = await Answer.findOne({ _id: answerID, questionID });
+    if (!chosenAnswer) {
+      return res.status(404).json({ error: "Answer not found" });
+    }
 
-    // Create or update the user's answer
+    const isCorrect = chosenAnswer.isCorrect;
+
+    // ✅ Create or update the user's answer
     const userAnswer = await UserAnswer.findOneAndUpdate(
       { userID, quizID, questionID },
-      { answerID, correct: !!isCorrect },
+      { answerID, correct: isCorrect },
       { new: true, upsert: true }
     );
 
     res.status(200).json({
       message: 'Answer submitted successfully',
-      correct: !!isCorrect,
+      correct: isCorrect,
+      reason: chosenAnswer.reason || "",
       response: userAnswer
     });
   } catch (error) {
     console.error('Error submitting answer:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', details: error.message });
   }
 };
 
+// ✅ Create or update attempt explicitly
 exports.createOrUpdateAttempt = async (req, res) => {
   try {
     const { userID, quizID, questionID, answerID } = req.body;
@@ -45,50 +56,52 @@ exports.createOrUpdateAttempt = async (req, res) => {
       return res.status(400).json({ message: 'All fields are required' });
     }
 
-    // Determine correctness
-    const isCorrect = await Solution.exists({ questionID, answerID });
+    // ✅ Check correctness directly from Answer
+    const chosenAnswer = await Answer.findOne({ _id: answerID, questionID });
+    if (!chosenAnswer) {
+      return res.status(404).json({ error: "Answer not found" });
+    }
+    const isCorrect = chosenAnswer.isCorrect;
 
-    // Check for existing attempt
+    // Check if attempt exists
     let existingResponse = await UserAnswer.findOne({ userID, quizID, questionID });
 
     if (existingResponse) {
-      // Update existing attempt
       existingResponse.answerID = answerID;
-      existingResponse.correct = !!isCorrect;
+      existingResponse.correct = isCorrect;
       await existingResponse.save();
 
       return res.status(200).json({
         message: 'Attempt updated successfully',
-        correct: !!isCorrect,
+        correct: isCorrect,
+        reason: chosenAnswer.reason || "",
         response: existingResponse
       });
     } else {
-      // Create new attempt
       const newResponse = new UserAnswer({
         userID,
         quizID,
         questionID,
         answerID,
-        correct: !!isCorrect
+        correct: isCorrect
       });
 
       const savedResponse = await newResponse.save();
 
       return res.status(201).json({
         message: 'Attempt created successfully',
-        correct: !!isCorrect,
+        correct: isCorrect,
+        reason: chosenAnswer.reason || "",
         response: savedResponse
       });
     }
   } catch (error) {
     console.error('Error processing attempt:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', details: error.message });
   }
 };
 
-//get recent last 10 questions and thier answers by userId
-
-
+// ✅ Get recent last 10 attempts by userId
 exports.getRecentAttempts = async (req, res) => {
   try {
     const { userID } = req.params;
@@ -99,19 +112,25 @@ exports.getRecentAttempts = async (req, res) => {
       .populate({
         path: 'questionID',
         select: 'title'
+      })
+      .populate({
+        path: 'answerID',
+        select: 'title reason isCorrect'
       });
 
     const formatted = attempts.map(attempt => ({
       attemptID: attempt._id,
-      questionID: attempt.questionID._id,
-      questionTitle: attempt.questionID.title,
-      answerID: attempt.answerID,
+      questionID: attempt.questionID?._id,
+      questionTitle: attempt.questionID?.title,
+      answerID: attempt.answerID?._id,
+      answerTitle: attempt.answerID?.title,
+      reason: attempt.answerID?.reason || "",
       correct: attempt.correct
     }));
 
     res.status(200).json(formatted);
   } catch (error) {
     console.error('Error fetching recent attempts:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', details: error.message });
   }
 };
