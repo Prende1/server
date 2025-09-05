@@ -9,7 +9,9 @@ router.get("/random", wordQuestionController.getRandomQuestion);
 // GET: Retrieve all word questions
 router.get("/:wordID", wordQuestionController.getAllWordQuestions);
 // GET: Retrieve all questions of all words
-router.get("/", wordQuestionController.getAllQuestions);    
+router.get("/", wordQuestionController.getAllQuestions);  
+//delete a question by ID
+router.delete("/:id", wordQuestionController.deleteWordQuestionById);  
 
 
 module.exports = router;

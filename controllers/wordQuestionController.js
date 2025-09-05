@@ -1,6 +1,7 @@
 const Word = require("../models/Word");
 const WordQuestion = require("../models/WordQuestion");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const WordAnswer = require("../models/WordAnswer");
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({
@@ -28,19 +29,26 @@ exports.createWordQuestion = async (req, res) => {
     }
     const wordTitle = wordData.title;
 
-    // Gemini review prompt
-    const reviewPrompt = `You're an English vocabulary expert. A question was submitted by a user:\n"${question}"\nThis question is supposed to be about the word: "${wordTitle}".\nIgnore grammar or spelling mistakes. Just answer if the question is relevant to the meaning, usage, or context of this word.\nReply only with "Valid" if relevant, or "Invalid" if unrelated.`;
+    // Gemini review prompt with tags
+    const reviewPrompt = `You're an English vocabulary expert. A question was submitted by a user:\n"${question}"\nThis question is supposed to be about the word: "${wordTitle}".\nIgnore grammar or spelling mistakes. First, reply with "Valid" if the question is relevant to the meaning, usage, or context of this word, or "Invalid" if unrelated. Then, on a new line, provide a comma-separated list of tags that best describe the type of question (e.g., philosophical, grammatical, historical, contextual, usage, definition, etc.).\nExample:\nValid\nTags: grammatical, usage`;
 
     const result = await model.generateContent({
       contents: [{ parts: [{ text: reviewPrompt }] }],
     });
 
-    const reviewResponse =
-      result.response.candidates[0].content.parts[0].text.trim();
-    if (reviewResponse.toLowerCase() === "invalid") {
+    const reviewText = result.response.candidates[0].content.parts[0].text.trim();
+    const [validityLine, tagsLine] = reviewText.split('\n');
+    const reviewFeedback = validityLine.trim();
+    let tags = [];
+    if (tagsLine && tagsLine.toLowerCase().startsWith('tags:')) {
+      tags = tagsLine.replace(/tags:/i, '').split(',').map(tag => tag.trim());
+    }
+
+    if (reviewFeedback.toLowerCase() === "invalid") {
       return res.status(400).json({
         error: "The question is invalid. Please revise it.",
-        reviewFeedback: reviewResponse,
+        reviewFeedback,
+        tags,
       });
     }
     const wordQuestion = await WordQuestion.create({
@@ -48,6 +56,7 @@ exports.createWordQuestion = async (req, res) => {
       question,
       created_by,
       reviewed_by: "AI",
+      tags,
       created_ts: new Date(),
       updated_ts: new Date(),
     });
@@ -55,7 +64,8 @@ exports.createWordQuestion = async (req, res) => {
     res.status(201).json({
       message: "WordQuestion created and reviewed",
       wordQuestion,
-      reviewFeedback: reviewResponse,
+      reviewFeedback,
+      tags,
     });
   } catch (error) {
     console.error("Error creating word question:", error);
@@ -126,5 +136,29 @@ exports.getRandomQuestion = async (req, res) => {
         error: "Failed to fetch word questions",
         details: error.message,
       });
+  }
+};
+
+//delete a question by its id if and only if there are no answers to it
+exports.deleteWordQuestionById = async (req, res) => {
+  try {
+    const questionID = req.params.id;
+    const question = await WordQuestion.findById(questionID);
+    if (!question) {
+      return res.status(404).json({ error: "Question not found" });
+    }
+    const answers = await WordAnswer.find({ questionID });
+    if (answers.length > 0) {
+      return res
+        .status(400)
+        .json({ error: "Cannot delete question with answers" });
+    }
+    await WordQuestion.findByIdAndDelete(questionID);
+    res.status(200).json({ message: "Question deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting question:", error);
+    res
+      .status(500)
+      .json({ error: "Failed to delete question", details: error.message });
   }
 };

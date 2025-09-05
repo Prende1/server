@@ -27,9 +27,9 @@ const wordQuestionSchema = new mongoose.Schema({
     type: String, // e.g., 'gemini-2.0'
     default: "AI",
   },
-  num_vote: {
-    type: Number,
-    default: 0,
+  tags: {
+    type: [String], // Array of tags for categorization
+    default: [],
   },
   likes:{
     type: Number,
