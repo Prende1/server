@@ -1,10 +1,11 @@
-// socket.js
+// socket.js (Backend)
 const socketIo = require('socket.io');
 const jwt = require('jsonwebtoken');
 const Message = require('./models/Message'); // Adjust path
 
-// Store active users
+// Store active users and calls
 const activeUsers = new Map();
+const activeCalls = new Map();
 
 function socketSetup(server) {
   const io = socketIo(server, {
@@ -39,6 +40,8 @@ function socketSetup(server) {
     io.emit('users_online', Array.from(activeUsers.values()));
 
     socket.join(socket.userId);
+
+    // === CHAT FUNCTIONALITY ===
 
     // Join chat room
     socket.on('join_chat', ({ recipientId }) => {
@@ -142,13 +145,258 @@ function socketSetup(server) {
       }
     });
 
-    // Disconnect
+    // === CALL MANAGEMENT ===
+
+    // Initiate call
+    socket.on('initiate_call', ({ recipientId, topic, callId }) => {
+      try {
+        const callData = {
+          callId,
+          initiatorId: socket.userId,
+          recipientId,
+          topic,
+          status: 'initiated',
+          createdAt: new Date()
+        };
+
+        activeCalls.set(callId, callData);
+        console.log(`Call initiated: ${callId} from ${socket.username} to ${recipientId}`);
+
+      } catch (error) {
+        console.error('Error initiating call:', error);
+      }
+    });
+
+    // Send call request
+    socket.on('call_request', ({ recipientId, topic, callId }) => {
+      try {
+        const recipient = activeUsers.get(recipientId);
+        if (recipient) {
+          io.to(recipient.socketId).emit('call_request', {
+            callId,
+            fromUser: socket.username,
+            fromUserId: socket.userId,
+            topic
+          });
+          
+          // Update call status
+          const callData = activeCalls.get(callId);
+          if (callData) {
+            callData.status = 'calling';
+            activeCalls.set(callId, callData);
+          }
+        } else {
+          socket.emit('call_error', { error: 'Recipient is not online' });
+        }
+
+      } catch (error) {
+        console.error('Error sending call request:', error);
+      }
+    });
+
+    // Accept call
+    socket.on('accept_call', ({ callId }) => {
+      try {
+        const callData = activeCalls.get(callId);
+        if (callData && callData.recipientId === socket.userId) {
+          callData.status = 'accepted';
+          activeCalls.set(callId, callData);
+
+          const initiator = activeUsers.get(callData.initiatorId);
+          if (initiator) {
+            io.to(initiator.socketId).emit('call_accepted', {
+              callId,
+              recipientId: socket.userId,
+              recipientName: socket.username
+            });
+          }
+
+          socket.emit('call_accepted', {
+            callId,
+            initiatorId: callData.initiatorId
+          });
+
+        } else {
+          socket.emit('call_error', { error: 'Call not found or unauthorized' });
+        }
+
+      } catch (error) {
+        console.error('Error accepting call:', error);
+      }
+    });
+
+    // Decline call
+    socket.on('decline_call', ({ callId }) => {
+      try {
+        const callData = activeCalls.get(callId);
+        if (callData && callData.recipientId === socket.userId) {
+          callData.status = 'declined';
+          activeCalls.set(callId, callData);
+
+          const initiator = activeUsers.get(callData.initiatorId);
+          if (initiator) {
+            io.to(initiator.socketId).emit('call_declined', {
+              callId,
+              reason: 'User declined'
+            });
+          }
+
+          // Clean up call after some time
+          setTimeout(() => {
+            activeCalls.delete(callId);
+          }, 30000);
+
+        } else {
+          socket.emit('call_error', { error: 'Call not found or unauthorized' });
+        }
+
+      } catch (error) {
+        console.error('Error declining call:', error);
+      }
+    });
+
+    // End call
+    socket.on('end_call', ({ callId }) => {
+      try {
+        const callData = activeCalls.get(callId);
+        if (callData && (callData.initiatorId === socket.userId || callData.recipientId === socket.userId)) {
+          callData.status = 'ended';
+          callData.endedAt = new Date();
+
+          const otherUserId = callData.initiatorId === socket.userId ? 
+            callData.recipientId : callData.initiatorId;
+          
+          const otherUser = activeUsers.get(otherUserId);
+          if (otherUser) {
+            io.to(otherUser.socketId).emit('call_ended', {
+              callId,
+              endedBy: socket.userId
+            });
+          }
+
+          socket.emit('call_ended', { callId });
+
+          // Clean up call
+          setTimeout(() => {
+            activeCalls.delete(callId);
+          }, 5000);
+
+        } else {
+          socket.emit('call_error', { error: 'Call not found or unauthorized' });
+        }
+
+      } catch (error) {
+        console.error('Error ending call:', error);
+      }
+    });
+
+    // Speaker change
+    socket.on('speaker_change', ({ callId, speakerId }) => {
+      try {
+        const callData = activeCalls.get(callId);
+        if (callData && (callData.initiatorId === socket.userId || callData.recipientId === socket.userId)) {
+          const otherUserId = callData.initiatorId === socket.userId ? 
+            callData.recipientId : callData.initiatorId;
+          
+          const otherUser = activeUsers.get(otherUserId);
+          if (otherUser) {
+            io.to(otherUser.socketId).emit('speaker_change', {
+              callId,
+              speakerId
+            });
+          }
+
+        } else {
+          socket.emit('call_error', { error: 'Call not found or unauthorized' });
+        }
+
+      } catch (error) {
+        console.error('Error handling speaker change:', error);
+      }
+    });
+
+    // === WEBRTC SIGNALING ===
+
+    // WebRTC offer
+    socket.on('webrtc_offer', ({ to, offer, callId }) => {
+      try {
+        const recipient = activeUsers.get(to);
+        if (recipient) {
+          io.to(recipient.socketId).emit('webrtc_offer', {
+            from: socket.userId,
+            offer,
+            callId
+          });
+        }
+
+      } catch (error) {
+        console.error('Error handling WebRTC offer:', error);
+      }
+    });
+
+    // WebRTC answer
+    socket.on('webrtc_answer', ({ to, answer, callId }) => {
+      try {
+        const recipient = activeUsers.get(to);
+        if (recipient) {
+          io.to(recipient.socketId).emit('webrtc_answer', {
+            from: socket.userId,
+            answer,
+            callId
+          });
+        }
+
+      } catch (error) {
+        console.error('Error handling WebRTC answer:', error);
+      }
+    });
+
+    // ICE candidate
+    socket.on('webrtc_ice_candidate', ({ to, candidate, callId }) => {
+      try {
+        const recipient = activeUsers.get(to);
+        if (recipient) {
+          io.to(recipient.socketId).emit('webrtc_ice_candidate', {
+            from: socket.userId,
+            candidate,
+            callId
+          });
+        }
+
+      } catch (error) {
+        console.error('Error handling ICE candidate:', error);
+      }
+    });
+
+    // === DISCONNECT HANDLER ===
+
     socket.on('disconnect', () => {
       console.log(`User ${socket.username} disconnected`);
+      
+      // Clean up active calls involving this user
+      activeCalls.forEach((callData, callId) => {
+        if (callData.initiatorId === socket.userId || callData.recipientId === socket.userId) {
+          const otherUserId = callData.initiatorId === socket.userId ? 
+            callData.recipientId : callData.initiatorId;
+          
+          const otherUser = activeUsers.get(otherUserId);
+          if (otherUser) {
+            io.to(otherUser.socketId).emit('call_ended', {
+              callId,
+              reason: 'User disconnected'
+            });
+          }
+          
+          activeCalls.delete(callId);
+        }
+      });
+
       activeUsers.delete(socket.userId);
       io.emit('users_online', Array.from(activeUsers.values()));
     });
   });
+
+  return io;
 }
 
 // Helper function
